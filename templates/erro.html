@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Erro - Encurtador de URLs</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/url-shortener.css') }}">
+    <style>
+        .error-container {
+            background-color: var(--warning-bg);
+            border: 2px solid var(--warning);
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            margin: 2rem 0;
+        }
+        
+        .error-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--warning);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-text">
+            <span>Url</span>
+        </div>
+        
+        <div class="error-container">
+            <div class="error-icon">⚠️</div>
+            <h2>Oops! Algo deu errado...</h2>
+            <p>{{ message }}</p>
+            <a href="{{ url_for('index') }}" class="copy-btn" style="display: inline-block; margin-top: 1.5rem; text-decoration: none;">Voltar para a página inicial</a>
+        </div>
+    </div>
+    
+    <footer>
+        <div class="footer-logo"><span>Url</span></div>
+        <p>&copy; 2025 Encurtador de URLs - FIAP. Todos os direitos reservados.</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Encurtador de URLs</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/url-shortener.css') }}">
+    <style>
+        .admin-container {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            color: var(--text-color);
+        }
+        
+        th, td {
+            padding: 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        th {
+            background-color: rgba(0, 0, 0, 0.3);
+            color: var(--primary);
+        }
+        
+        .action-btn {
+            background-color: transparent;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            margin-right: 0.5rem;
+        }
+        
+        .delete-btn {
+            color: var(--warning);
+        }
+        
+        .stats-container {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .back-btn {
+            background-color: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            cursor: pointer;
+        }
+        
+        .back-btn:hover {
+            background-color: rgba(255, 215, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-text">
+            <span>Url</span> Admin
+        </div>
+        
+        <div class="admin-container">
+            <a href="{{ url_for('index') }}" class="back-btn">← Voltar para a página inicial</a>
+            
+            <h2>Gerenciamento de URLs</h2>
+            
+            <div id="links-table-container">
+                <table id="links-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>URL de destino</th>
+                            <th>Data de criação</th>
+                            <th>Cliques</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="links-tbody">
+                        <!-- Os links serão inseridos aqui via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="stats-container" class="stats-container">
+                <h3>Estatísticas de Acesso</h3>
+                <p>Código curto: <span id="stats-code"></span></p>
+                <p>URL de destino: <span id="stats-url"></span></p>
+                <p>Total de cliques: <span id="stats-clicks"></span></p>
+                
+                <h4>Histórico de acessos</h4>
+                <table id="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>IP do cliente</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-tbody">
+                        <!-- Os logs serão inseridos aqui via JavaScript -->
+                    </tbody>
+                </table>
+                
+                <button id="close-stats-btn" class="copy-btn">Fechar</button>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <div class="footer-logo"><span>Url</span></div>
+        <p>&copy; 2025 Encurtador de URLs - FIAP. Todos os direitos reservados.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const linksTbody = document.getElementById('links-tbody');
+            const statsContainer = document.getElementById('stats-container');
+            const statsCode = document.getElementById('stats-code');
+            const statsUrl = document.getElementById('stats-url');
+            const statsClicks = document.getElementById('stats-clicks');
+            const logsTbody = document.getElementById('logs-tbody');
+            const closeStatsBtn = document.getElementById('close-stats-btn');
+            const linksTableContainer = document.getElementById('links-table-container');
+            
+            // Carregar todos os links
+            async function loadLinks() {
+                try {
+                    const response = await fetch('/api/links');
+                    const links = await response.json();
+                    
+                    linksTbody.innerHTML = '';
+                    
+                    if (links.length === 0) {
+                        linksTbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Nenhum link cadastrado</td></tr>';
+                        return;
+                    }
+                    
+                    links.forEach(link => {
+                        const row = document.createElement('tr');
+                        
+                        // Formatar data
+                        const date = new Date(link.data_criacao);
+                        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                        
+                        row.innerHTML = `
+                            <td>${link.codigo_curto}</td>
+                            <td>${link.url_destino}</td>
+                            <td>${formattedDate}</td>
+                            <td>${link.cliques || 0}</td>
+                            <td>
+                                <button class="action-btn stats-btn" data-id="${link._id}" data-code="${link.codigo_curto}" data-url="${link.url_destino}">📊 Stats</button>
+                                <button class="action-btn delete-btn" data-id="${link._id}">❌ Excluir</button>
+                            </td>
+                        `;
+                        
+                        linksTbody.appendChild(row);
+                    });
+                    
+                    // Adicionar event listeners para os botões
+                    document.querySelectorAll('.stats-btn').forEach(btn => {
+                        btn.addEventListener('click', showStats);
+                    });
+                    
+                    document.querySelectorAll('.delete-btn').forEach(btn => {
+                        btn.addEventListener('click', deleteLink);
+                    });
+                    
+                } catch (error) {
+                    console.error('Erro ao carregar links:', error);
+                    linksTbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Erro ao carregar links</td></tr>';
+                }
+            }
+            
+            // Mostrar estatísticas de um link
+            async function showStats(event) {
+                const id = event.target.dataset.id;
+                const code = event.target.dataset.code;
+                const url = event.target.dataset.url;
+                
+                try {
+                    const response = await fetch(`/api/links/${id}/stats`);
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        alert(data.error || 'Erro ao carregar estatísticas');
+                        return;
+                    }
+                    
+                    // Preencher dados básicos
+                    statsCode.textContent = code;
+                    statsUrl.textContent = url;
+                    statsClicks.textContent = data.cliques;
+                    
+                    // Preencher histórico de acessos
+                    logsTbody.innerHTML = '';
+                    
+                    if (data.historico.length === 0) {
+                        logsTbody.innerHTML = '<tr><td colspan="2" style="text-align: center;">Nenhum acesso registrado</td></tr>';
+                    } else {
+                        data.historico.forEach(log => {
+                            const row = document.createElement('tr');
+                            
+                            // Formatar data
+                            const date = new Date(log.data_hora);
+                            const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                            
+                            row.innerHTML = `
+                                <td>${formattedDate}</td>
+                                <td>${log.ip_cliente}</td>
+                            `;
+                            
+                            logsTbody.appendChild(row);
+                        });
+                    }
+                    
+                    // Mostrar container de estatísticas
+                    linksTableContainer.style.display = 'none';
+                    statsContainer.style.display = 'block';
+                    
+                } catch (error) {
+                    console.error('Erro ao carregar estatísticas:', error);
+                    alert('Erro ao carregar estatísticas');
+                }
+            }
+            
+            // Excluir um link
+            async function deleteLink(event) {
+                if (!confirm('Tem certeza que deseja excluir este link?')) {
+                    return;
+                }
+                
+                const id = event.target.dataset.id;
+                
+                try {
+                    const response = await fetch(`/api/links/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        alert(data.error || 'Erro ao excluir link');
+                        return;
+                    }
+                    
+                    alert('Link excluído com sucesso');
+                    loadLinks();
+                    
+                } catch (error) {
+                    console.error('Erro ao excluir link:', error);
+                    alert('Erro ao excluir link');
+                }
+            }
+            
+            // Fechar estatísticas
+            closeStatsBtn.addEventListener('click', function() {
+                statsContainer.style.display = 'none';
+                linksTableContainer.style.display = 'block';
+            });
+            
+            // Iniciar carregamento de links
+            loadLinks();
+        });
+    </script>
+</body>
+</html>

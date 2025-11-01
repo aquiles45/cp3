@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encurtador de URLs</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/url-shortener.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="logo-text">
+            <span>Url</span>
+        </div>
+        
+        <h2>Encurtador de links para suas Redes Sociais</h2>
+        
+        <div class="url-form">
+            <div class="option-tabs">
+                <div class="tab active" data-tab="regular">URL Normal</div>
+                <a href="{{ url_for('admin') }}" class="tab">Área do Administrador</a>
+            </div>
+            
+            <div class="tab-content active" data-tab="regular">
+                <div class="url-input-container">
+                    <input type="text" class="url-input" id="url-input" placeholder="Cole aqui sua URL. Exemplo: https://www.exemplo.com">
+                    <button class="url-submit" id="encurtar-btn">Encurtar</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="result-container" id="result-container">
+            <h3>URL Encurtada com Sucesso!</h3>
+            <div class="shortened-url">
+                <a href="#" id="short-url-link" target="_blank"></a>
+            </div>
+            <button class="copy-btn" id="copy-btn">Copiar URL</button>
+        </div>
+        
+        <div class="how-it-works">
+            <h3>Como Funciona</h3>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h4>Cole sua URL</h4>
+                    <p>Insira o link que você deseja encurtar no campo acima</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h4>Encurte</h4>
+                    <p>Clique no botão para gerar um link curto</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h4>Compartilhe</h4>
+                    <p>Use o link encurtado em suas redes sociais e mensagens</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <div class="footer-logo"><span>Url</span></div>
+        <p>&copy; 2025 Encurtador de URLs - FIAP. Todos os direitos reservados.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlInput = document.getElementById('url-input');
+            const encurtarBtn = document.getElementById('encurtar-btn');
+            const resultContainer = document.getElementById('result-container');
+            const shortUrlLink = document.getElementById('short-url-link');
+            const copyBtn = document.getElementById('copy-btn');
+            
+            encurtarBtn.addEventListener('click', async function() {
+                const url = urlInput.value.trim();
+                
+                if (!url) {
+                    alert('Por favor, insira uma URL válida.');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/links', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            url_destino: url
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        alert(data.error || 'Ocorreu um erro ao encurtar a URL.');
+                        return;
+                    }
+                    
+                    const shortUrl = `${window.location.origin}/${data.codigo_curto}`;
+                    shortUrlLink.textContent = shortUrl;
+                    shortUrlLink.href = shortUrl;
+                    resultContainer.style.display = 'block';
+                    
+                    // Scroll para o resultado
+                    resultContainer.scrollIntoView({ behavior: 'smooth' });
+                    
+                } catch (error) {
+                    console.error('Erro:', error);
+                    alert('Ocorreu um erro ao encurtar a URL.');
+                }
+            });
+            
+            copyBtn.addEventListener('click', function() {
+                const text = shortUrlLink.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    this.textContent = 'Copiado!';
+                    setTimeout(() => {
+                        this.textContent = 'Copiar URL';
+                    }, 2000);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
