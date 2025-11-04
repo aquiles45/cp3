@@ -8,22 +8,22 @@ import string
 
 app = Flask(__name__)
 
-client = MongoClient('mongodb://localhost:27017/')
-db = client['encurtador_db']
-links_collection = db['links']
-logs_collection = db['logs_acesso']
+cliente_mongo = MongoClient('mongodb://localhost:27017/')
+banco_dados = cliente_mongo['encurtador_db']
+colecao_links = banco_dados['links']
+colecao_logs = banco_dados['logs_acesso']
 
-def is_redirect_url(url):
+def e_url_de_redirecionamento(url):
     try:
         import requests
-        response = requests.head(url, allow_redirects=False, timeout=5)
-        return response.status_code in [301, 302, 303, 307, 308]
+        resposta = requests.head(url, allow_redirects=False, timeout=5)
+        return resposta.status_code in [301, 302, 303, 307, 308]
     except:
         return False
 
-def generate_short_code(length=6):
-    characters = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(characters) for _ in range(length))
+def gerar_codigo_curto(tamanho=6):
+    caracteres = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(caracteres) for _ in range(tamanho))
 
 @app.route('/')
 def index():
@@ -31,32 +31,32 @@ def index():
 
 @app.route('/admin')
 def admin():
-    links = list(links_collection.find())
+    links = list(colecao_links.find())
     return render_template('admin.html', links=links)
 
 @app.route('/api/links', methods=['GET'])
-def list_links():
-    links = list(links_collection.find())
+def listar_links():
+    links = list(colecao_links.find())
     for link in links:
         link['_id'] = str(link['_id'])
     return jsonify(links)
 
 @app.route('/api/links', methods=['POST'])
-def create_link():
-    data = request.json
-    url_destino = data.get('url_destino')
-    codigo_curto = data.get('codigo_curto')
+def criar_link():
+    dados = request.json
+    url_destino = dados.get('url_destino')
+    codigo_curto = dados.get('codigo_curto')
     
     if not url_destino or not re.match(r'https?://', url_destino):
         return jsonify({'error': 'URL inválida. Use o formato http:// ou https://'}), 400
     
-    if is_redirect_url(url_destino):
+    if e_url_de_redirecionamento(url_destino):
         return jsonify({'error': 'A URL informada é um redirecionamento. Por razões de segurança, não permitimos encurtar redirecionamentos.'}), 400
     
     if not codigo_curto:
-        codigo_curto = generate_short_code()
+        codigo_curto = gerar_codigo_curto()
     
-    if links_collection.find_one({'codigo_curto': codigo_curto}):
+    if colecao_links.find_one({'codigo_curto': codigo_curto}):
         return jsonify({'error': 'Este código curto já está em uso. Escolha outro.'}), 400
     
     novo_link = {
@@ -66,16 +66,16 @@ def create_link():
         'cliques': 0
     }
     
-    result = links_collection.insert_one(novo_link)
-    novo_link['_id'] = str(result.inserted_id)
+    resultado = colecao_links.insert_one(novo_link)
+    novo_link['_id'] = str(resultado.inserted_id)
     
     return jsonify(novo_link), 201
 
 @app.route('/api/links/<id>', methods=['DELETE'])
-def delete_link(id):
+def deletar_link(id):
     try:
-        result = links_collection.delete_one({'_id': ObjectId(id)})
-        if result.deleted_count > 0:
+        resultado = colecao_links.delete_one({'_id': ObjectId(id)})
+        if resultado.deleted_count > 0:
             return jsonify({'message': 'Link removido com sucesso'}), 200
         else:
             return jsonify({'error': 'Link não encontrado'}), 404
@@ -83,15 +83,15 @@ def delete_link(id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/links/<id>/stats', methods=['GET'])
-def get_link_stats(id):
+def obter_estatisticas_link(id):
     try:
-        link = links_collection.find_one({'_id': ObjectId(id)})
+        link = colecao_links.find_one({'_id': ObjectId(id)})
         if not link:
             return jsonify({'erro': 'Link não encontrado'}), 404
             
         cliques = link.get('cliques', 0)
         
-        logs = list(logs_collection.find({'link_id': ObjectId(id)}))
+        logs = list(colecao_logs.find({'link_id': ObjectId(id)}))
         for log in logs:
             log['_id'] = str(log['_id'])
             log['link_id'] = str(log['link_id'])
@@ -105,22 +105,22 @@ def get_link_stats(id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/<string:codigo>')
-def redirect_short_url(codigo):
+def redirecionar_url_curta(codigo):
     try:
-        link = links_collection.find_one({'codigo_curto': codigo})
+        link = colecao_links.find_one({'codigo_curto': codigo})
 
         if link:
             link_id = link['_id']
             url_destino = link['url_destino']
 
-            log_data = {
+            dados_log = {
                 'link_id': link_id,
                 'data_hora': datetime.datetime.now(datetime.UTC),
                 'ip_cliente': request.remote_addr
             }
-            logs_collection.insert_one(log_data)
+            colecao_logs.insert_one(dados_log)
 
-            links_collection.update_one(
+            colecao_links.update_one(
                 {'_id': link_id},
                 {'$inc': {'cliques': 1}}
             )
