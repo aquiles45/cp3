@@ -64,6 +64,39 @@
         .back-btn:hover {
             background-color: rgba(255, 215, 0, 0.1);
         }
+        
+        .create-form-container {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+        
+        .create-form-container .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .create-form-container label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .admin-input {
+            width: 100%;
+            padding: 0.8rem;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            color: var(--text-color);
+            box-sizing: border-box;
+        }
+        
+        #create-link-btn {
+            display: inline-block;
+            text-decoration: none;
+            margin-top: 0.5rem;
+        }
+
     </style>
 </head>
 <body>
@@ -75,6 +108,19 @@
         <div class="admin-container">
             <a href="{{ url_for('index') }}" class="back-btn">← Voltar para a página inicial</a>
             
+            <div class="create-form-container">
+                <h3>Criar Novo Link (Admin)</h3>
+                <div class="form-group">
+                    <label for="new-url-destino">URL de Destino:</label>
+                    <input type="text" id="new-url-destino" class="admin-input" placeholder="https://www.exemplo.com">
+                </div>
+                <div class="form-group">
+                    <label for="new-codigo-curto">Código Curto:</label>
+                    <input type="text" id="new-codigo-curto" class="admin-input" placeholder="">
+                </div>
+                <button id="create-link-btn" class="copy-btn">Criar Link</button>
+            </div>
+
             <h2>Gerenciamento de URLs</h2>
             
             <div id="links-table-container">
@@ -89,7 +135,6 @@
                         </tr>
                     </thead>
                     <tbody id="links-tbody">
-                        <!-- Os links serão inseridos aqui via JavaScript -->
                     </tbody>
                 </table>
             </div>
@@ -109,7 +154,6 @@
                         </tr>
                     </thead>
                     <tbody id="logs-tbody">
-                        <!-- Os logs serão inseridos aqui via JavaScript -->
                     </tbody>
                 </table>
                 
@@ -119,8 +163,6 @@
     </div>
     
     <footer>
-        <div class="footer-logo"><span>Url</span></div>
-        <p>&copy; 2025 Encurtador de URLs - FIAP. Todos os direitos reservados.</p>
     </footer>
 
     <script>
@@ -134,7 +176,10 @@
             const closeStatsBtn = document.getElementById('close-stats-btn');
             const linksTableContainer = document.getElementById('links-table-container');
             
-            // Carregar todos os links
+            const createLinkBtn = document.getElementById('create-link-btn');
+            const newUrlDestino = document.getElementById('new-url-destino');
+            const newCodigoCurto = document.getElementById('new-codigo-curto');
+
             async function loadLinks() {
                 try {
                     const response = await fetch('/api/links');
@@ -150,7 +195,6 @@
                     links.forEach(link => {
                         const row = document.createElement('tr');
                         
-                        // Formatar data
                         const date = new Date(link.data_criacao);
                         const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
                         
@@ -168,7 +212,6 @@
                         linksTbody.appendChild(row);
                     });
                     
-                    // Adicionar event listeners para os botões
                     document.querySelectorAll('.stats-btn').forEach(btn => {
                         btn.addEventListener('click', showStats);
                     });
@@ -183,7 +226,50 @@
                 }
             }
             
-            // Mostrar estatísticas de um link
+            async function createNewLink() {
+                const url_destino = newUrlDestino.value.trim();
+                const codigo_curto = newCodigoCurto.value.trim();
+                
+                if (!url_destino) {
+                    alert('insira a URL de destino.');
+                    return;
+                }
+                
+                const body = {
+                    url_destino: url_destino
+                };
+                
+                if (codigo_curto) {
+                    body.codigo_curto = codigo_curto;
+                }
+                
+                try {
+                    const response = await fetch('/api/links', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(body)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        alert(data.error || 'Erro ao criar link');
+                        return;
+                    }
+                    
+                    alert('Link criado com sucesso!');
+                    newUrlDestino.value = '';
+                    newCodigoCurto.value = '';
+                    loadLinks();
+                    
+                } catch (error) {
+                    console.error('Erro ao criar link:', error);
+                    alert('Erro ao criar link');
+                }
+            }
+
             async function showStats(event) {
                 const id = event.target.dataset.id;
                 const code = event.target.dataset.code;
@@ -198,12 +284,10 @@
                         return;
                     }
                     
-                    // Preencher dados básicos
                     statsCode.textContent = code;
                     statsUrl.textContent = url;
                     statsClicks.textContent = data.cliques;
                     
-                    // Preencher histórico de acessos
                     logsTbody.innerHTML = '';
                     
                     if (data.historico.length === 0) {
@@ -212,7 +296,6 @@
                         data.historico.forEach(log => {
                             const row = document.createElement('tr');
                             
-                            // Formatar data
                             const date = new Date(log.data_hora);
                             const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
                             
@@ -225,7 +308,6 @@
                         });
                     }
                     
-                    // Mostrar container de estatísticas
                     linksTableContainer.style.display = 'none';
                     statsContainer.style.display = 'block';
                     
@@ -235,9 +317,8 @@
                 }
             }
             
-            // Excluir um link
             async function deleteLink(event) {
-                if (!confirm('Tem certeza que deseja excluir este link?')) {
+                if (!confirm('Tem certeza que deseja excluir ?')) {
                     return;
                 }
                 
@@ -264,13 +345,13 @@
                 }
             }
             
-            // Fechar estatísticas
             closeStatsBtn.addEventListener('click', function() {
                 statsContainer.style.display = 'none';
                 linksTableContainer.style.display = 'block';
             });
             
-            // Iniciar carregamento de links
+            createLinkBtn.addEventListener('click', createNewLink);
+            
             loadLinks();
         });
     </script>
